@@ -138,6 +138,8 @@ export interface InfraProps extends StackProps {
   readonly additionalOsdConfig?: string,
   /** Add any custom configuration files to the cluster */
   readonly customConfigFiles?: string,
+  /** URL to download custom plugin from */
+  readonly pluginUrl?: string,
   /** Whether to enable monioring with alarms */
   readonly enableMonitoring?: boolean,
   /** Certificate ARN to attach to the listener */
@@ -212,6 +214,8 @@ export class InfraStack extends Stack {
   private additionalOsdConfig: string;
 
   private customConfigFiles: string;
+
+  private pluginUrl: string;
 
   private enableMonitoring: boolean;
 
@@ -379,6 +383,8 @@ export class InfraStack extends Stack {
     }
 
     this.customConfigFiles = `${props?.customConfigFiles ?? scope.node.tryGetContext('customConfigFiles')}`;
+
+    this.pluginUrl = `${props?.pluginUrl ?? scope.node.tryGetContext('pluginUrl')}`;
 
     const use50heap = `${props?.use50PercentHeap ?? scope.node.tryGetContext('use50PercentHeap')}`;
     this.use50PercentHeap = use50heap === 'true';
@@ -1032,6 +1038,14 @@ export class InfraStack extends Stack {
       cfnInitConfig.push(InitCommand.shellCommand('set -ex;cd opensearch;sudo -u ec2-user bin/opensearch-plugin install '
         + `https://ci.opensearch.org/ci/dbc/distribution-build-opensearch/${this.distVersion}/latest/linux/${this.cpuArch}`
         + `/tar/builds/opensearch/core-plugins/repository-s3-${this.distVersion}.zip --batch`, {
+        cwd: currentWorkDir,
+        ignoreErrors: false,
+      }));
+    }
+
+    // Install custom plugin if pluginUrl is provided
+    if (this.pluginUrl.toString() !== 'undefined') {
+      cfnInitConfig.push(InitCommand.shellCommand(`set -ex;cd opensearch;sudo -u ec2-user bin/opensearch-plugin install ${this.pluginUrl} --batch`, {
         cwd: currentWorkDir,
         ignoreErrors: false,
       }));
